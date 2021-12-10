@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="jogl-all-natives-windows-amd64">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/Downloads/jogl-all-natives-windows-amd64.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
