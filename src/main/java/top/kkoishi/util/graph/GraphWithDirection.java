@@ -30,15 +30,25 @@
 
 package top.kkoishi.util.graph;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Vector;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
-public class GraphWithDirection<V> implements Graph<V> {
+public class GraphWithDirection<V> implements top.kkoishi.util.graph.Graph<V>, Cloneable, Iterable<V> {
+    @Override
+    @SuppressWarnings("all")
+    public GraphWithDirection<V> clone () {
+        try {
+            GraphWithDirection clone = (GraphWithDirection) super.clone();
+            //copy mutable state here, so the clone can't change the internals of the original
+            clone.dataMap = this.dataMap;
+            clone.headValue = this.headValue;
+            return clone;
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError();
+        }
+    }
+
     class SideNode {
         int weight;
         PointNode next;
@@ -115,9 +125,10 @@ public class GraphWithDirection<V> implements Graph<V> {
      * Further, a node will be created if the point with the value of
      * the last param does not exist.<br>
      * Like this:frontValue -> sideWeight -> nextValue.
+     *
      * @param frontValue the front node' value.
      * @param sideWeight the side's weight
-     * @param nextValue the node which the side will point at.
+     * @param nextValue  the node which the side will point at.
      */
     @Override
     public void add (V frontValue, int sideWeight, V nextValue) {
@@ -231,7 +242,7 @@ public class GraphWithDirection<V> implements Graph<V> {
     }
 
     @Override
-    public Graph<V> deepCopy () {
+    public top.kkoishi.util.graph.Graph<V> deepCopy () {
         return this;
     }
 
@@ -257,6 +268,57 @@ public class GraphWithDirection<V> implements Graph<V> {
     @Override
     public int sides (int sideWeight) {
         return getSides(sideWeight).size();
+    }
+
+    final boolean isConnectionComponent (PointNode point) {
+        if (point == null) {
+            return false;
+        }
+        if (point.value.equals(headValue)) {
+            return false;
+        }
+        return partition(point, 0, point.value);
+    }
+
+    final boolean partition (PointNode node, int i, V v) {
+        if (node.value.equals(headValue)) {
+            return false;
+        }
+        if (i != 0 && node.value.equals(v)) {
+            return true;
+        }
+        boolean flag = false;
+        for (SideNode s : node.sides) {
+            flag |= partition(s.next, i + 1, v);
+        }
+        return flag | node.value.equals(v);
+    }
+
+    private GraphWithDirection<V> getInstance (PointNode point) {
+        return null;
+    }
+
+    /**
+     * Get a list of connection component.
+     * A connection component is a child graph that is not linked
+     * with the other connection component.
+     *
+     * @return List.
+     * @throws NullPointerException when the graph is empty.
+     */
+    @Override
+    public List<Graph<V>> getConnectionComponent () {
+        top.kkoishi.util.LinkedList<PointNode> points = new top.kkoishi.util.LinkedList<>(dataMap.values());
+        List<Graph<V>> ans = new LinkedList<>();
+        for (PointNode point : points) {
+            if (isConnectionComponent(point)) {
+                if (point.value != headValue) {
+                    ans.add(getInstance(point));
+                }
+            }
+        }
+        ans.add(this);
+        return ans;
     }
 
     @Deprecated
@@ -308,6 +370,87 @@ public class GraphWithDirection<V> implements Graph<V> {
         }
         return b.toString();
     }
+
+    /**
+     * Returns an iterator over elements of type {@code T}.
+     *
+     * @return an Iterator.
+     */
+    @Override
+    public Iterator<V> iterator () {
+        return new GraphIterator(dataMap.values());
+    }
+
+    /**
+     * Performs the given action for each element of the {@code Iterable}
+     * until all elements have been processed or the action throws an
+     * exception.  Actions are performed in the order of iteration, if that
+     * order is specified.  Exceptions thrown by the action are relayed to the
+     * caller.
+     * <p>
+     * The behavior of this method is unspecified if the action performs
+     * side-effects that modify the underlying source of elements, unless an
+     * overriding class has specified a concurrent modification policy.
+     *
+     * @param action The action to be performed for each element
+     * @throws NullPointerException if the specified action is null
+     * @implSpec <p>The default implementation behaves as if:
+     * <pre>{@code
+     *     for (T t : this)
+     *         action.accept(t);
+     * }</pre>
+     * @since 1.8
+     */
+    @Override
+    public void forEach (Consumer<? super V> action) {
+        for (V v : this) {
+            action.accept(v);
+        }
+    }
+
+    final class GraphIterator implements Iterator<V> {
+        HashMap<V, Boolean> visited;
+        List<PointNode> pointNodes;
+        int pointer = 0;
+
+        public GraphIterator (Collection<PointNode> c) {
+            visited = new HashMap<>();
+            pointNodes = new Vector<>(c);
+        }
+
+
+        /**
+         * Returns {@code true} if the iteration has more elements.
+         * (In other words, returns {@code true} if {@link #next} would
+         * return an element rather than throwing an exception.)
+         *
+         * @return {@code true} if the iteration has more elements
+         */
+        @Override
+        public boolean hasNext () {
+            return pointer + 1 <= pointNodes.size();
+        }
+
+        /**
+         * Returns the next element in the iteration.
+         *
+         * @return the next element in the iteration
+         * @throws NoSuchElementException if the iteration has no more elements
+         */
+        @Override
+        public V next () {
+            {
+                V v = pointNodes.get(pointer).value;
+                while (visited.containsKey(v)) {
+                    pointer++;
+                    v = pointNodes.get(pointer).value;
+                }
+            }
+            V v = pointNodes.get(pointer++).value;
+            visited.put(v, true);
+            return v;
+        }
+    }
 }
 
 class GraphTest {
@@ -315,6 +458,7 @@ class GraphTest {
         GraphWithDirection<String> graph = new GraphWithDirection<>();
         graph.add("start");
         graph.add("end");
+        graph.add("rue");
         graph.add("start", 10, "p(1,1)");
         graph.add("p(1,1)", 5, "p(1,2)");
         graph.add("p(1,2)", 6, "p(1,3)");
@@ -333,9 +477,11 @@ class GraphTest {
         graph.add("p(1,3)", 4, "p(2,2)");
         graph.add("p(2,1)", 12, "p(3,2)");
         graph.add("p(3,1)", 2, "p(2,1)");
-        graph.add("start", 0, "end");
+        graph.add("end", 0, "start");
         System.out.println(graph);
         System.out.println(graph.getSides("start"));
         System.out.println(graph.getPoints("start"));
+        System.out.println(graph.getConnectionComponent().size());
+        System.out.println(graph.isConnectionComponent((GraphWithDirection<String>.PointNode) graph.getPoint("rue")));
     }
 }

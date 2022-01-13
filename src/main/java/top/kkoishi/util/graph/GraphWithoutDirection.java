@@ -153,4 +153,17 @@ public class GraphWithoutDirection<V> implements Graph<V> {
     public int sides (int sideWeight) {
         return 0;
     }
+
+    /**
+     * Get a list of connection component.
+     * A connection component is a child graph that is not linked
+     * with the other connection component.
+     *
+     * @return List.
+     * @throws NullPointerException when the graph is empty.
+     */
+    @Override
+    public List<Graph<V>> getConnectionComponent () {
+        return null;
+    }
 }

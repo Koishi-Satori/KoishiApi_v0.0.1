@@ -9,19 +9,41 @@
 package top.kkoishi.util;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.AbstractSequentialList;
+import java.util.Collection;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+
+import static java.lang.System.out;
 
 /**
  * @author KKoishi
  */
 public class LinkedList<V> extends AbstractSequentialList<V>
         implements List<V>, Deque<V>, Cloneable, Serializable {
+    @Override
+    @SuppressWarnings("all")
+    public LinkedList<V> clone () {
+        try {
+            LinkedList clone = (LinkedList) super.clone();
+            //copy mutable state here, so the clone can't change the internals of the original
+            clone.size = this.size;
+            clone.head = this.head;
+            return clone;
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError();
+        }
+    }
 
     /*----------------------------------Field Start----------------------------------*/
 
-    final static class Node<V> {
+    final static class Node<V> implements Cloneable {
         V value;
         Node<V> prev;
         Node<V> next;
@@ -34,6 +56,20 @@ public class LinkedList<V> extends AbstractSequentialList<V>
             this.value = value;
             this.prev = prev;
             this.next = next;
+        }
+
+        @Override
+        @SuppressWarnings("all")
+        public Node<V> clone () {
+            try {
+                Node n = (Node) super.clone();
+                n.value = value;
+                n.prev = prev;
+                n.next = next;
+                return n;
+            } catch (CloneNotSupportedException e) {
+                throw new AssertionError();
+            }
         }
     }
 
@@ -50,8 +86,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
     }
 
     public LinkedList (Collection<? extends V> c) {
-        size = c.size();
-        //TODO:finish the constructor
+        this.addAll(c);
     }
 
     final void linkFirst (V value) {
@@ -158,7 +193,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public ListIterator<V> listIterator (int index) {
-        return this.new LIT();
+        return this.new lit();
     }
 
     @Override
@@ -266,7 +301,11 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V removeFirst () {
-        return unlinkFirst();
+        final Node<V> node = head;
+        if (node == null) {
+            throw new NoSuchElementException();
+        }
+        return unlinkFirst(node);
     }
 
     /**
@@ -279,7 +318,11 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V removeLast () {
-        return null;
+        final Node<V> node = last;
+        if (node == null) {
+            throw new NoSuchElementException();
+        }
+        return unlinkLast(node);
     }
 
     /**
@@ -290,7 +333,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V pollFirst () {
-        return null;
+        return removeFirst();
     }
 
     /**
@@ -301,7 +344,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V pollLast () {
-        return null;
+        return removeLast();
     }
 
     /**
@@ -315,7 +358,10 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V getFirst () {
-        return null;
+        if (head == null) {
+            throw new NoSuchElementException();
+        }
+        return head.value;
     }
 
     /**
@@ -328,7 +374,10 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V getLast () {
-        return null;
+        if (last == null) {
+            throw new NoSuchElementException();
+        }
+        return last.value;
     }
 
     /**
@@ -339,7 +388,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V peekFirst () {
-        return null;
+        return (head == null ? null : head.value);
     }
 
     /**
@@ -350,7 +399,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V peekLast () {
-        return null;
+        return (last == null ? null : last.value);
     }
 
     /**
@@ -372,6 +421,42 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public boolean removeFirstOccurrence (Object o) {
+        return remove(o);
+    }
+
+    /**
+     * Remove the first element of {@code o} from the list.
+     * if it is present.  If this list does not contain the element, it is
+     * unchanged.  More formally, removes the element with the lowest index
+     * {@code i} such that
+     * {@code Objects.equals(o, get(i))}
+     * (if such an element exists).  Returns {@code true} if this list
+     * contained the specified element (or equivalently, if this list
+     * changed as a result of the call).
+     *
+     * @param o element to be removed from this list, if present
+     * @return {@code true} if this list contained the specified element
+     */
+    @Override
+    public boolean remove (Object o) {
+        if (head == null) {
+            throw new NullPointerException();
+        }
+        if (o == null) {
+            for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+                if (pointer.value == null) {
+                    unlink(pointer);
+                    return true;
+                }
+            }
+        } else {
+            for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+                if (pointer.value.equals(o)) {
+                    unlink(pointer);
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -394,6 +479,24 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public boolean removeLastOccurrence (Object o) {
+        if (head == null) {
+            throw new NullPointerException();
+        }
+        if (o == null) {
+            for (Node<V> pointer = last; pointer != null; pointer = pointer.prev) {
+                if (pointer.value == null) {
+                    unlink(pointer);
+                    return true;
+                }
+            }
+        } else {
+            for (Node<V> pointer = last; pointer != null; pointer = pointer.prev) {
+                if (pointer.value.equals(o)) {
+                    unlink(pointer);
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -420,7 +523,13 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public boolean offer (V v) {
-        return false;
+        return add(v);
+    }
+
+    @Override
+    public boolean add (V v) {
+        linkLast(v);
+        return true;
     }
 
     /**
@@ -436,7 +545,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V remove () {
-        return null;
+        return removeLast();
     }
 
     /**
@@ -451,7 +560,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V poll () {
-        return null;
+        return (head == null ? null : removeFirst());
     }
 
     /**
@@ -467,7 +576,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V element () {
-        return null;
+        return (head == null ? null : getFirst());
     }
 
     /**
@@ -482,7 +591,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V peek () {
-        return null;
+        return element();
     }
 
     /**
@@ -505,7 +614,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public void push (V v) {
-
+        addFirst(v);
     }
 
     /**
@@ -520,7 +629,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public V pop () {
-        return null;
+        return removeFirst();
     }
 
     /**
@@ -533,7 +642,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public Iterator<V> descendingIterator () {
-        return null;
+        return this.new Itr();
     }
 
     /**
@@ -558,7 +667,16 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public boolean removeIf (Predicate<? super V> filter) {
-        return super.removeIf(filter);
+        if (head == null) {
+            throw new NullPointerException();
+        }
+        for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+            if (filter.test(pointer.value)) {
+                unlink(pointer);
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -583,10 +701,660 @@ public class LinkedList<V> extends AbstractSequentialList<V>
      */
     @Override
     public void forEach (Consumer<? super V> action) {
-        super.forEach(action);
+        if (head == null) {
+            throw new NullPointerException();
+        }
+        for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+            action.accept(pointer.value);
+        }
     }
 
-    final class LIT implements ListIterator<V> {
+    /**
+     * Returns the element at the specified position in this list.
+     *
+     * <p>This implementation first gets a list iterator pointing to the
+     * indexed element (with {@code listIterator(index)}).  Then, it gets
+     * the element using {@code ListIterator.next} and returns it.
+     *
+     * @param index the index of the element
+     * @return the element
+     * @throws IndexOutOfBoundsException {@inheritDoc}
+     * @throws NullPointerException      when the list is empty.
+     * @throws NoSuchElementException    when the element is not in the list.
+     */
+    @Override
+    public V get (int index) {
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException();
+        }
+        if (head == null) {
+            throw new NullPointerException();
+        }
+        int counter = 0;
+        for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+            if (counter == index) {
+                return pointer.value;
+            }
+            counter++;
+        }
+        throw new NoSuchElementException();
+    }
+
+    /**
+     * Replaces the element at the specified position in this list with the
+     * specified element (optional operation).
+     *
+     * <p>This implementation first gets a list iterator pointing to the
+     * indexed element (with {@code listIterator(index)}).  Then, it gets
+     * the current element using {@code ListIterator.next} and replaces it
+     * with {@code ListIterator.set}.
+     *
+     * <p>Note that this implementation will throw an
+     * {@code UnsupportedOperationException} if the list iterator does not
+     * implement the {@code set} operation.
+     *
+     * @param index   the index of the element that you want to change.
+     * @param element the new value.
+     * @return old value.
+     * @throws UnsupportedOperationException {@inheritDoc}
+     * @throws ClassCastException            {@inheritDoc}
+     * @throws NullPointerException          {@inheritDoc}
+     * @throws IllegalArgumentException      {@inheritDoc}
+     * @throws IndexOutOfBoundsException     {@inheritDoc}
+     */
+    @Override
+    public V set (int index, V element) {
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException();
+        }
+        if (head == null) {
+            throw new NullPointerException();
+        }
+        int counter;
+        if (index < (size >> 1)) {
+            counter = 0;
+            for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+                if (counter == index) {
+                    final V value = pointer.value;
+                    pointer.value = element;
+                    return value;
+                }
+                counter++;
+            }
+        } else {
+            counter = size - 1;
+            for (Node<V> pointer = last; pointer != null; pointer = pointer.prev) {
+                if (counter == index) {
+                    final V value = pointer.value;
+                    pointer.value = element;
+                    return value;
+                }
+                counter--;
+            }
+        }
+        throw new IllegalArgumentException();
+    }
+
+    /**
+     * Inserts the specified element at the specified position in this list
+     * (optional operation).  Shifts the element currently at that position
+     * (if any) and any subsequent elements to the right (adds one to their
+     * indices).
+     *
+     * <p>This implementation first gets a list iterator pointing to the
+     * indexed element (with {@code listIterator(index)}).  Then, it
+     * inserts the specified element with {@code ListIterator.add}.
+     *
+     * <p>Note that this implementation will throw an
+     * {@code UnsupportedOperationException} if the list iterator does not
+     * implement the {@code add} operation.
+     *
+     * @param index
+     * @param element
+     * @throws UnsupportedOperationException {@inheritDoc}
+     * @throws ClassCastException            {@inheritDoc}
+     * @throws NullPointerException          {@inheritDoc}
+     * @throws IllegalArgumentException      {@inheritDoc}
+     * @throws IndexOutOfBoundsException     {@inheritDoc}
+     */
+    @Override
+    public void add (int index, V element) {
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException();
+        }
+        if (head == null) {
+            throw new NullPointerException();
+        }
+        int counter;
+        if (index < (size >> 1)) {
+            counter = 0;
+            for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+                if (counter == index) {
+                    linkBefore(element, pointer);
+                    return;
+                }
+                counter++;
+            }
+        } else {
+            counter = size - 1;
+            for (Node<V> pointer = last; pointer != null; pointer = pointer.prev) {
+                if (counter == index) {
+                    linkBefore(element, pointer);
+                    return;
+                }
+                counter--;
+            }
+        }
+        throw new IllegalArgumentException();
+    }
+
+    /**
+     * Removes the element at the specified position in this list (optional
+     * operation).  Shifts any subsequent elements to the left (subtracts one
+     * from their indices).  Returns the element that was removed from the
+     * list.
+     *
+     * <p>This implementation first gets a list iterator pointing to the
+     * indexed element (with {@code listIterator(index)}).  Then, it removes
+     * the element with {@code ListIterator.remove}.
+     *
+     * <p>Note that this implementation will throw an
+     * {@code UnsupportedOperationException} if the list iterator does not
+     * implement the {@code remove} operation.
+     *
+     * @param index
+     * @throws UnsupportedOperationException {@inheritDoc}
+     * @throws IndexOutOfBoundsException     {@inheritDoc}
+     */
+    @Override
+    public V remove (int index) {
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException();
+        }
+        if (head == null) {
+            throw new NullPointerException();
+        }
+        int counter;
+        if (index < (size >> 1)) {
+            counter = 0;
+            for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+                if (counter == index) {
+                    final V value = pointer.value;
+                    unlink(pointer);
+                    return value;
+                }
+                counter++;
+            }
+        } else {
+            counter = size - 1;
+            for (Node<V> pointer = last; pointer != null; pointer = pointer.prev) {
+                if (counter == index) {
+                    final V value = pointer.value;
+                    unlink(pointer);
+                    return value;
+                }
+                counter--;
+            }
+        }
+        throw new IllegalArgumentException();
+    }
+
+    /**
+     * Inserts all of the elements in the specified collection into this
+     * list at the specified position (optional operation).  Shifts the
+     * element currently at that position (if any) and any subsequent
+     * elements to the right (increases their indices).  The new elements
+     * will appear in this list in the order that they are returned by the
+     * specified collection's iterator.  The behavior of this operation is
+     * undefined if the specified collection is modified while the
+     * operation is in progress.  (Note that this will occur if the specified
+     * collection is this list, and it's nonempty.)
+     *
+     * <p>This implementation gets an iterator over the specified collection and
+     * a list iterator over this list pointing to the indexed element (with
+     * {@code listIterator(index)}).  Then, it iterates over the specified
+     * collection, inserting the elements obtained from the iterator into this
+     * list, one at a time, using {@code ListIterator.add} followed by
+     * {@code ListIterator.next} (to skip over the added element).
+     *
+     * <p>Note that this implementation will throw an
+     * {@code UnsupportedOperationException} if the list iterator returned by
+     * the {@code listIterator} method does not implement the {@code add}
+     * operation.
+     *
+     * @param index
+     * @param c
+     * @throws UnsupportedOperationException {@inheritDoc}
+     * @throws ClassCastException            {@inheritDoc}
+     * @throws NullPointerException          {@inheritDoc}
+     * @throws IllegalArgumentException      {@inheritDoc}
+     * @throws IndexOutOfBoundsException     {@inheritDoc}
+     */
+    @Override
+    public boolean addAll (int index, Collection<? extends V> c) {
+        return super.addAll(index, c);
+    }
+
+    /**
+     * Returns an iterator over the elements in this list (in proper
+     * sequence).<p>
+     * <p>
+     * This implementation merely returns a list iterator over the list.
+     *
+     * @return an iterator over the elements in this list (in proper sequence)
+     */
+    @Override
+    public Iterator<V> iterator () {
+        return this.new Itr();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param o
+     * @throws ClassCastException   {@inheritDoc}
+     * @throws NullPointerException {@inheritDoc}
+     * @implSpec This implementation first gets a list iterator (with
+     * {@code listIterator()}).  Then, it iterates over the list until the
+     * specified element is found or the end of the list is reached.
+     */
+    @Override
+    public int indexOf (Object o) {
+        if (size == 0) {
+            throw new NullPointerException();
+        }
+        int counter = 0;
+        for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+            if (o == null && pointer.value == null) {
+                return counter;
+            } else {
+                if (pointer.value.equals(o)) {
+                    return counter;
+                }
+            }
+            counter++;
+        }
+        return -1;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param o
+     * @throws ClassCastException   {@inheritDoc}
+     * @throws NullPointerException {@inheritDoc}
+     * @implSpec This implementation first gets a list iterator that points to the end
+     * of the list (with {@code listIterator(size())}).  Then, it iterates
+     * backwards over the list until the specified element is found, or the
+     * beginning of the list is reached.
+     */
+    @Override
+    public int lastIndexOf (Object o) {
+        if (size == 0) {
+            throw new NullPointerException();
+        }
+        int counter = size - 1;
+        for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+            if (o == null && pointer.value == null) {
+                return counter;
+            } else {
+                if (pointer.value.equals(o)) {
+                    return counter;
+                }
+            }
+            counter--;
+        }
+        return -1;
+    }
+
+    /**
+     * Removes all of the elements from this list (optional operation).
+     * The list will be empty after this call returns.
+     *
+     * @throws UnsupportedOperationException if the {@code clear} operation
+     *                                       is not supported by this list
+     * @implSpec This implementation calls {@code removeRange(0, size())}.
+     *
+     * <p>Note that this implementation throws an
+     * {@code UnsupportedOperationException} unless {@code remove(int
+     * index)} or {@code removeRange(int fromIndex, int toIndex)} is
+     * overridden.
+     */
+    @Override
+    public void clear () {
+        this.size = 0;
+        this.head = null;
+        this.last = null;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @implSpec This implementation returns {@code listIterator(0)}.
+     * @see #listIterator(int)
+     */
+    @Override
+    public ListIterator<V> listIterator () {
+        return this.new lit();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param fromIndex
+     * @param toIndex
+     * @throws IndexOutOfBoundsException if an endpoint index value is out of range
+     *                                   {@code (fromIndex < 0 || toIndex > size)}
+     * @throws IllegalArgumentException  if the endpoint indices are out of order
+     *                                   {@code (fromIndex > toIndex)}
+     * @implSpec This implementation returns a list that subclasses
+     * {@code AbstractList}.  The subclass stores, in private fields, the
+     * size of the subList (which can change over its lifetime), and the
+     * expected {@code modCount} value of the backing list.  There are two
+     * variants of the subclass, one of which implements {@code RandomAccess}.
+     * If this list implements {@code RandomAccess} the returned list will
+     * be an instance of the subclass that implements {@code RandomAccess}.
+     *
+     * <p>The subclass's {@code set(int, E)}, {@code get(int)},
+     * {@code add(int, E)}, {@code remove(int)}, {@code addAll(int,
+     * Collection)} and {@code removeRange(int, int)} methods all
+     * delegate to the corresponding methods on the backing abstract list,
+     * after bounds-checking the index and adjusting for the offset.  The
+     * {@code addAll(Collection c)} method merely returns {@code addAll(size,
+     * c)}.
+     *
+     * <p>The {@code listIterator(int)} method returns a "wrapper object"
+     * over a list iterator on the backing list, which is created with the
+     * corresponding method on the backing list.  The {@code iterator} method
+     * merely returns {@code listIterator()}, and the {@code size} method
+     * merely returns the subclass's {@code size} field.
+     *
+     * <p>All methods first check to see if the actual {@code modCount} of
+     * the backing list is equal to its expected value, and throw a
+     * {@code ConcurrentModificationException} if it is not.
+     */
+    @Override
+    public List<V> subList (int fromIndex, int toIndex) {
+        if (fromIndex > toIndex) {
+            throw new IllegalArgumentException();
+        }
+        if (fromIndex < 0 || toIndex >= size) {
+            throw new IndexOutOfBoundsException();
+        }
+        LinkedList<V> sub = new LinkedList<>();
+        int i = 0;
+        for (Node<V> pointer = head; pointer != null; pointer = pointer.next, i++) {
+            if (i >= fromIndex && i <= toIndex) {
+                sub.linkLast(pointer.value);
+            }
+        }
+        return sub;
+    }
+
+    /**
+     * Compares the specified object with this list for equality.  Returns
+     * {@code true} if and only if the specified object is also a list, both
+     * lists have the same size, and all corresponding pairs of elements in
+     * the two lists are <i>equal</i>.  (Two elements {@code e1} and
+     * {@code e2} are <i>equal</i> if {@code (e1==null ? e2==null :
+     * e1.equals(e2))}.)  In other words, two lists are defined to be
+     * equal if they contain the same elements in the same order.
+     *
+     * @param o the object to be compared for equality with this list
+     * @return {@code true} if the specified object is equal to this list
+     * @implSpec This implementation first checks if the specified object is this
+     * list. If so, it returns {@code true}; if not, it checks if the
+     * specified object is a list. If not, it returns {@code false}; if so,
+     * it iterates over both lists, comparing corresponding pairs of elements.
+     * If any comparison returns {@code false}, this method returns
+     * {@code false}.  If either iterator runs out of elements before the
+     * other it returns {@code false} (as the lists are of unequal length);
+     * otherwise it returns {@code true} when the iterations complete.
+     */
+    @Override
+    public boolean equals (Object o) {
+        return (o != null && (o == this || (o instanceof LinkedList<?> &&
+                this.size == ((LinkedList<?>) o).size && this.head.equals(((LinkedList<?>) o).head))));
+    }
+
+    /**
+     * Returns the hash code value for this list.
+     *
+     * @return the hash code value for this list
+     * @implSpec This implementation uses exactly the code that is used to define the
+     * list hash function in the documentation for the {@link List#hashCode}
+     * method.
+     */
+    @Override
+    public int hashCode () {
+        return super.hashCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @implSpec This implementation returns {@code size() == 0}.
+     */
+    @Override
+    public boolean isEmpty () {
+        return size == 0;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param o
+     * @throws ClassCastException   {@inheritDoc}
+     * @throws NullPointerException {@inheritDoc}
+     * @implSpec This implementation iterates over the elements in the collection,
+     * checking each element in turn for equality with the specified element.
+     */
+    @Override
+    public boolean contains (Object o) {
+        if (size == 0 || head == null) {
+            throw new NullPointerException();
+        }
+        for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+            if (pointer.value.equals(o)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @implSpec This implementation returns an array containing all the elements
+     * returned by this collection's iterator, in the same order, stored in
+     * consecutive elements of the array, starting with index {@code 0}.
+     * The length of the returned array is equal to the number of elements
+     * returned by the iterator, even if the size of this collection changes
+     * during iteration, as might happen if the collection permits
+     * concurrent modification during iteration.  The {@code size} method is
+     * called only as an optimization hint; the correct result is returned
+     * even if the iterator returns a different number of elements.
+     *
+     * <p>This method is equivalent to:
+     *
+     * <pre> {@code
+     * List<E> list = new ArrayList<E>(size());
+     * for (E e : this)
+     *     list.add(e);
+     * return list.toArray();
+     * }</pre>
+     */
+    @Override
+    public Object[] toArray () {
+        if (head == null) {
+            return new Object[0];
+        }
+        Object[] os = new Object[size];
+        int counter = 0;
+        for (Node<V> pointer = head; pointer != null; pointer = pointer.next) {
+            os[counter] = pointer.value;
+            counter++;
+        }
+        return os;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param c
+     * @throws ClassCastException   {@inheritDoc}
+     * @throws NullPointerException {@inheritDoc}
+     * @implSpec This implementation iterates over the specified collection,
+     * checking each element returned by the iterator in turn to see
+     * if it's contained in this collection.  If all elements are so
+     * contained {@code true} is returned, otherwise {@code false}.
+     * @see #contains(Object)
+     */
+    @Override
+    public boolean containsAll (Collection<?> c) {
+        if (c == null) {
+            return false;
+        }
+        if (c.size() != size) {
+            return false;
+        }
+        if (head == null) {
+            throw new NullPointerException();
+        }
+        for (Object value : c) {
+            if (!contains(value)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param c
+     * @throws UnsupportedOperationException {@inheritDoc}
+     * @throws ClassCastException            {@inheritDoc}
+     * @throws NullPointerException          {@inheritDoc}
+     * @throws IllegalArgumentException      {@inheritDoc}
+     * @throws IllegalStateException         {@inheritDoc}
+     * @implSpec This implementation iterates over the specified collection, and adds
+     * each object returned by the iterator to this collection, in turn.
+     *
+     * <p>Note that this implementation will throw an
+     * {@code UnsupportedOperationException} unless {@code add} is
+     * overridden (assuming the specified collection is non-empty).
+     * @see #add(Object)
+     */
+    @Override
+    public boolean addAll (Collection<? extends V> c) {
+        return super.addAll(c);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param c
+     * @throws UnsupportedOperationException {@inheritDoc}
+     * @throws ClassCastException            {@inheritDoc}
+     * @throws NullPointerException          {@inheritDoc}
+     * @implSpec This implementation iterates over this collection, checking each
+     * element returned by the iterator in turn to see if it's contained
+     * in the specified collection.  If it's so contained, it's removed from
+     * this collection with the iterator's {@code remove} method.
+     *
+     * <p>Note that this implementation will throw an
+     * {@code UnsupportedOperationException} if the iterator returned by the
+     * {@code iterator} method does not implement the {@code remove} method
+     * and this collection contains one or more elements in common with the
+     * specified collection.
+     * @see #remove(Object)
+     * @see #contains(Object)
+     */
+    @Override
+    public boolean removeAll (Collection<?> c) {
+        return super.removeAll(c);
+    }
+
+    /**
+     * Returns a string representation of this collection.  The string
+     * representation consists of a list of the collection's elements in the
+     * order they are returned by its iterator, enclosed in square brackets
+     * ({@code "[]"}).  Adjacent elements are separated by the characters
+     * {@code ", "} (comma and space).  Elements are converted to strings as
+     * by {@link String#valueOf(Object)}.
+     *
+     * @return a string representation of this collection
+     */
+    @Override
+    public String toString () {
+        if (head == null) {
+            return null;
+        }
+        Node<V> pointer = head;
+        StringBuilder builder = new StringBuilder("[" + pointer.value.toString());
+        while (pointer.next != null) {
+            pointer = pointer.next;
+            builder.append(", ").append(pointer.value.toString());
+        }
+        builder.append("]");
+        return builder.toString();
+    }
+
+    /**
+     * Replaces each element of this list with the result of applying the
+     * operator to that element.  Errors or runtime exceptions thrown by
+     * the operator are relayed to the caller.
+     *
+     * @param operator the operator to apply to each element
+     * @throws UnsupportedOperationException if this list is unmodifiable.
+     *                                       Implementations may throw this exception if an element
+     *                                       cannot be replaced or if, in general, modification is not
+     *                                       supported
+     * @throws NullPointerException          if the specified operator is null or
+     *                                       if the operator result is a null value and this list does
+     *                                       not permit null elements
+     *                                       (<a href="Collection.html#optional-restrictions">optional</a>)
+     * @implSpec The default implementation is equivalent to, for this {@code list}:
+     * <pre>{@code
+     *     final ListIterator<E> li = list.listIterator();
+     *     while (li.hasNext()) {
+     *         li.set(operator.apply(li.next()));
+     *     }
+     * }</pre>
+     * <p>
+     * If the list's list-iterator does not support the {@code set} operation
+     * then an {@code UnsupportedOperationException} will be thrown when
+     * replacing the first element.
+     * @since 1.8
+     */
+    @Override
+    public void replaceAll (UnaryOperator<V> operator) {
+        super.replaceAll(operator);
+    }
+
+
+    /**
+     * Define a simple ListIterator.
+     */
+    final class lit implements ListIterator<V> {
+        int pointer;
+        Node<V> copy;
+
+        {
+            new Node<>(head.value, null, head.next);
+        }
+
+        public lit () {
+            pointer = 0;
+            copy = head.clone();
+        }
+
+        private void init () {
+            if (copy == null) {
+                copy = head;
+            }
+        }
 
         /**
          * Returns {@code true} if this list iterator has more elements when
@@ -599,7 +1367,8 @@ public class LinkedList<V> extends AbstractSequentialList<V>
          */
         @Override
         public boolean hasNext () {
-            return false;
+            init();
+            return pointer + 1 <= size;
         }
 
         /**
@@ -614,7 +1383,11 @@ public class LinkedList<V> extends AbstractSequentialList<V>
          */
         @Override
         public V next () {
-            return null;
+            init();
+            pointer++;
+            final V value = copy.value;
+            copy = copy.next;
+            return value;
         }
 
         /**
@@ -628,7 +1401,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
          */
         @Override
         public boolean hasPrevious () {
-            return false;
+            return size - 1 > 0;
         }
 
         /**
@@ -645,7 +1418,9 @@ public class LinkedList<V> extends AbstractSequentialList<V>
          */
         @Override
         public V previous () {
-            return null;
+            final V value = copy.value;
+            copy = copy.prev;
+            return value;
         }
 
         /**
@@ -659,7 +1434,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
          */
         @Override
         public int nextIndex () {
-            return 0;
+            return pointer + 1;
         }
 
         /**
@@ -673,7 +1448,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
          */
         @Override
         public int previousIndex () {
-            return 0;
+            return pointer - 1;
         }
 
         /**
@@ -692,7 +1467,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
          */
         @Override
         public void remove () {
-
+            LinkedList.this.remove();
         }
 
         /**
@@ -717,7 +1492,7 @@ public class LinkedList<V> extends AbstractSequentialList<V>
          */
         @Override
         public void set (V v) {
-
+            LinkedList.this.set(pointer, v);
         }
 
         /**
@@ -742,7 +1517,100 @@ public class LinkedList<V> extends AbstractSequentialList<V>
          */
         @Override
         public void add (V v) {
-
+            LinkedList.this.add(v);
         }
+    }
+
+    final class Itr implements Iterator<V> {
+        int pointer;
+        Node<V> copy;
+
+        public Itr () {
+            pointer = 0;
+            copy = new Node<>(head.value);
+            copy.next = head.next;
+        }
+
+        private void init () {
+            if (copy == null) {
+                copy = head;
+            }
+        }
+
+        /**
+         * Returns {@code true} if the iteration has more elements.
+         * (In other words, returns {@code true} if {@link #next} would
+         * return an element rather than throwing an exception.)
+         *
+         * @return {@code true} if the iteration has more elements
+         */
+        @Override
+        public boolean hasNext () {
+            init();
+            return pointer + 1 <= size && isEmpty();
+        }
+
+        /**
+         * Returns the next element in the iteration.
+         *
+         * @return the next element in the iteration
+         * @throws NoSuchElementException if the iteration has no more elements
+         */
+        @Override
+        public V next () {
+            init();
+            pointer++;
+            final V value = copy.value;
+            copy = copy.next;
+            return value;
+        }
+
+        /**
+         * Removes from the underlying collection the last element returned
+         * by this iterator (optional operation).  This method can be called
+         * only once per call to {@link #next}.
+         * <p>
+         * The behavior of an iterator is unspecified if the underlying collection
+         * is modified while the iteration is in progress in any way other than by
+         * calling this method, unless an overriding class has specified a
+         * concurrent modification policy.
+         * <p>
+         * The behavior of an iterator is unspecified if this method is called
+         * after a call to the {@link #forEachRemaining forEachRemaining} method.
+         *
+         * @throws UnsupportedOperationException if the {@code remove}
+         *                                       operation is not supported by this iterator
+         * @throws IllegalStateException         if the {@code next} method has not
+         *                                       yet been called, or the {@code remove} method has already
+         *                                       been called after the last call to the {@code next}
+         *                                       method
+         * @implSpec The default implementation throws an instance of
+         * {@link UnsupportedOperationException} and performs no other action.
+         */
+        @Override
+        public void remove () {
+            Iterator.super.remove();
+        }
+    }
+}
+
+class LinkedListTest {
+    public static void main (String[] args) {
+        LinkedList<Integer> linkedList = new LinkedList<>();
+        linkedList.add(1);
+        linkedList.add(2);
+        linkedList.addFirst(0);
+        linkedList.addLast(4);
+        linkedList.add(3, 3);
+        linkedList.set(3, -3);
+        out.println(linkedList);
+        for (Integer num : linkedList) {
+            out.println(num);
+        }
+        linkedList.addLast(10);
+        linkedList.addLast(10);
+        linkedList.addLast(10);
+        linkedList.addLast(10);
+        linkedList.addLast(10);
     }
 }

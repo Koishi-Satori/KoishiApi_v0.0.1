@@ -28,7 +28,7 @@
  *
  */
 
-package top.kkoishi.util.graph;
+package top.kkoishi.util;
 
 import java.util.List;
 
@@ -50,6 +50,7 @@ public interface Graph<V> {
      * <p>
      * For adjacency-matrix or other implement structures, the graph should not
      * allow the already-existed element be appended.
+     *
      * @param value the void point's value.
      * @return true if added,or false
      */
@@ -89,21 +90,26 @@ public interface Graph<V> {
      * element is the last one.
      *
      * @param value the value of the node which you'd like to remove.
+     * @return if success
      */
-    void remove (V value);
+    boolean remove (V value);
 
     /**
      * Remove a side between two points.
+     *
      * @param from from point
-     * @param to next point
+     * @param to   next point
+     * @return if success
      */
-    void remove (V from, V to);
+    boolean remove (V from, V to);
 
     /**
      * Remove all sides that match the sideWeight
+     *
      * @param sideWeight the sides' weight
+     * @return if success
      */
-    void removeAll (int sideWeight);
+    boolean removeAll (int sideWeight);
 
     /**
      * Get the only point which its value is the param.
@@ -133,6 +139,7 @@ public interface Graph<V> {
 
     /**
      * Get the side amount which its side-weight is value of the param.
+     *
      * @param sideWeight the side-weight of the sides
      * @return amount
      */
@@ -142,15 +149,16 @@ public interface Graph<V> {
      * @return a default graph without directions.
      */
     static Object newInstance () {
-        return new GraphWithDirection<>();
+        return new UndirectedGraph<>();
     }
 
     /**
      * Get a list of connection component.
      * A connection component is a child graph that is not linked
      * with the other connection component.
-     * @throws NullPointerException when the graph is empty.
+     *
      * @return List.
+     * @throws NullPointerException when the graph is empty.
      */
     List<Graph<V>> getConnectionComponent ();
 
@@ -158,6 +166,7 @@ public interface Graph<V> {
      * Return a simple description of the graph.
      * For an adjust-matrix,the matrix will be return.
      * And for the other ways,all the possible pass will be shown.
+     *
      * @return description of a graph
      */
     @Override

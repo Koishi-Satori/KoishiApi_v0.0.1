@@ -43,7 +43,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
         this.addAll(c);
     }
 
-    private void resize () {
+    private synchronized void resize () {
         size++;
         if (data == null) {
             data = new Object[size];
@@ -54,7 +54,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
         System.arraycopy(array, 0, data, 0, size - 1);
     }
 
-    private void desize (int index) {
+    private synchronized void desize (int index) {
         if (size == 0) {
             data = null;
             throw new NullPointerException();
@@ -67,11 +67,11 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
     }
 
     @SuppressWarnings("unchecked")
-    private V find (int index) {
+    private synchronized V find (int index) {
         return (V) data[index];
     }
 
-    private void offer (Object[] array, int index) {
+    private synchronized void offer (Object[] array, int index) {
         size += array.length;
         out.println(size);
         Object[] copy = data;
@@ -109,7 +109,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * {@link #add(int, Object) add(int, E)} is overridden.
      */
     @Override
-    public boolean add (V v) {
+    public synchronized boolean add (V v) {
         resize();
         data[size - 1] = v;
         return true;
@@ -129,7 +129,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * {@code UnsupportedOperationException}.
      */
     @Override
-    public V set (int index, V element) {
+    public synchronized V set (int index, V element) {
         if (index >= size || size < 0) {
             throw new IndexOutOfBoundsException();
         }
@@ -155,7 +155,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * {@code UnsupportedOperationException}.
      */
     @Override
-    public void add (int index, V element) {
+    public synchronized void add (int index, V element) {
         if (index < 0 || index >= size) {
             throw new IndexOutOfBoundsException();
         }
@@ -174,7 +174,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * {@code UnsupportedOperationException}.
      */
     @Override
-    public V remove (int index) {
+    public synchronized V remove (int index) {
         if (index < 0 || index >= size) {
             throw new IndexOutOfBoundsException();
         }
@@ -194,7 +194,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * specified element is found or the end of the list is reached.
      */
     @Override
-    public int indexOf (Object o) {
+    public synchronized int indexOf (Object o) {
         if (size == 0) {
             throw new NullPointerException();
         }
@@ -218,7 +218,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * beginning of the list is reached.
      */
     @Override
-    public int lastIndexOf (Object o) {
+    public synchronized int lastIndexOf (Object o) {
         if (size == 0) {
             throw new NullPointerException();
         }
@@ -244,7 +244,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * overridden.
      */
     @Override
-    public void clear () {
+    public synchronized void clear () {
         if (size == 0) {
             throw new UnsupportedOperationException();
         }
@@ -273,7 +273,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * {@link #add(int, Object) add(int, E)} is overridden.
      */
     @Override
-    public boolean addAll (int index, Collection<? extends V> c) {
+    public synchronized boolean addAll (int index, Collection<? extends V> c) {
         if (size == 0) {
             throw new NullPointerException();
         }
@@ -300,7 +300,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * for the (protected) {@link #modCount} field.
      */
     @Override
-    public Iterator<V> iterator () {
+    public synchronized Iterator<V> iterator () {
         return this.new InnerIterator();
     }
 
@@ -311,7 +311,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * @see #listIterator(int)
      */
     @Override
-    public ListIterator<V> listIterator () {
+    public synchronized ListIterator<V> listIterator () {
         return this.new InnerListInerator();
     }
 
@@ -351,7 +351,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * {@code ConcurrentModificationException} if it is not.
      */
     @Override
-    public List<V> subList (int fromIndex, int toIndex) {
+    public synchronized List<V> subList (int fromIndex, int toIndex) {
         if (fromIndex < 0 || toIndex > size) {
             throw new IndexOutOfBoundsException();
         }
@@ -386,7 +386,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * otherwise it returns {@code true} when the iterations complete.
      */
     @Override
-    public boolean equals (Object o) {
+    public synchronized boolean equals (Object o) {
         if (o == this) {
             return true;
         } else {
@@ -418,7 +418,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * method.
      */
     @Override
-    public int hashCode () {
+    public synchronized int hashCode () {
         int hashcode = 1;
         for (V v : this) {
             hashcode = 31 * hashcode + (v == null ? 0 : v.hashCode());
@@ -432,7 +432,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * @implSpec This implementation returns {@code size() == 0}.
      */
     @Override
-    public boolean isEmpty () {
+    public synchronized boolean isEmpty () {
         return size == 0;
     }
 
@@ -446,7 +446,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * checking each element in turn for equality with the specified element.
      */
     @Override
-    public boolean contains (Object o) {
+    public synchronized boolean contains (Object o) {
         if (data == null) {
             throw new NullPointerException();
         }
@@ -481,7 +481,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * }</pre>
      */
     @Override
-    public Object[] toArray () {
+    public synchronized Object[] toArray () {
         return data;
     }
 
@@ -514,7 +514,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      */
     @Override
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray (T[] a) {
+    public synchronized  <T> T[] toArray (T[] a) {
         if (a.length < size) {
             return (T[]) Arrays.copyOf(data, size);
         }
@@ -544,7 +544,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * method and this collection contains the specified object.
      */
     @Override
-    public boolean remove (Object o) {
+    public synchronized boolean remove (Object o) {
         if (indexOf(o) == -1) {
             return false;
         }
@@ -565,7 +565,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * @see #contains(Object)
      */
     @Override
-    public boolean containsAll (Collection<?> c) {
+    public synchronized boolean containsAll (Collection<?> c) {
         AtomicBoolean def = new AtomicBoolean(false);
         c.forEach(element -> {
             if (!element.equals(c)) {
@@ -595,7 +595,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * @see #add(Object)
      */
     @Override
-    public boolean addAll (Collection<? extends V> c) {
+    public synchronized boolean addAll (Collection<? extends V> c) {
         c.forEach(this::add);
         return true;
     }
@@ -621,7 +621,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * @see #contains(Object)
      */
     @Override
-    public boolean removeAll (Collection<?> c) {
+    public synchronized boolean removeAll (Collection<?> c) {
         c.forEach(this::remove);
         return true;
     }
@@ -648,7 +648,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      */
     @Override
     @Deprecated
-    public boolean retainAll (Collection<?> c) {
+    public synchronized boolean retainAll (Collection<?> c) {
         return super.retainAll(c);
     }
 
@@ -663,7 +663,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * @return a string representation of this collection
      */
     @Override
-    public String toString () {
+    public synchronized String toString () {
         return Arrays.toString(data);
     }
 
@@ -674,7 +674,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     @Override
-    public V get (int index) {
+    public synchronized V get (int index) {
         if (index < 0 || index > size) {
             throw new IndexOutOfBoundsException();
         }
@@ -682,7 +682,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
     }
 
     @Override
-    public int size () {
+    public synchronized int size () {
         return size;
     }
 
@@ -740,7 +740,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * @since 1.8
      */
     @Override
-    public boolean removeIf (Predicate<? super V> filter) {
+    public synchronized boolean removeIf (Predicate<? super V> filter) {
         boolean b = false;
         for (V o : this) {
             b = filter.test(o);
@@ -772,7 +772,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * @since 1.8
      */
     @Override
-    public void forEach (Consumer<? super V> action) {
+    public synchronized void forEach (Consumer<? super V> action) {
         for (V v : this) {
             action.accept(v);
         }
@@ -780,7 +780,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
 
     @Override
     @SuppressWarnings("unchecked")
-    public Vector<V> clone () {
+    public synchronized Vector<V> clone () {
         try {
             Vector<V> clone = (Vector<V>) super.clone();
             // TODO: copy mutable state here, so the clone can't change the internals of the original
@@ -823,7 +823,7 @@ public class Vector<V> extends AbstractList<V> implements List<V>, RandomAccess,
      * @since 11
      */
     @Override
-    public <T> T[] toArray (IntFunction<T[]> generator) {
+    public synchronized  <T> T[] toArray (IntFunction<T[]> generator) {
         return super.toArray(generator);
     }
 
